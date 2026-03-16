@@ -1,0 +1,121 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #f5f7f2, #e9efe1);
+  color: #1f2937;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app {
+  width: 100%;
+  max-width: 720px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: 32px;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.actions {
+  margin-bottom: 20px;
+}
+
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 14px 22px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #166534;
+  color: white;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+button:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+.result {
+  margin-top: 14px;
+  padding: 20px;
+  border-radius: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.hidden {
+  display: none;
+}
+
+.status {
+  margin: 0 0 12px;
+  font-weight: 700;
+  color: #166534;
+}
+
+.hadithText {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.8;
+}
+
+.reference,
+.grade {
+  margin: 14px 0 0;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  .hadithText {
+    font-size: 18px;
+  }
+}

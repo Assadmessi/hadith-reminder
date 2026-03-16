@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Islamic Reminder Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <div class="card">
+      <p class="badge">Islamic Reminder</p>
+      <h1>Islamic Reminder Generator</h1>
+      <p class="subtitle">
+        Click the button to get a beneficial reminder from hadith. If the public API is unavailable, the app will show an offline authentic reminder instead.
+      </p>
+
+      <div class="actions">
+        <button id="generateBtn">Get Reminder</button>
+      </div>
+
+      <section id="result" class="result hidden" aria-live="polite">
+        <p id="status" class="status"></p>
+        <blockquote id="hadithText" class="hadithText"></blockquote>
+        <p id="reference" class="reference"></p>
+        <p id="grade" class="grade"></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
