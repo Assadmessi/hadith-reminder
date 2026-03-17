@@ -3,36 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hadith Finder</title>
+  <title>Hadith AI Finder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <div class="card">
-      <p class="badge">Hadith Finder</p>
-      <h1>Hadith Finder</h1>
+      <p class="badge">Hadith AI Finder</p>
+      <h1>Hadith AI Finder</h1>
       <p class="subtitle">
-        Search authentic hadiths in your preferred language. Enter a keyword or briefly describe your situation to find relevant narrations. If you prefer a random reminder instead, click the random button.
+        Keep the random hadith reminder, search real hadith collections, and ask an AI assistant that answers from relevant hadith context instead of guessing.
       </p>
 
       <div class="search-controls">
-        <textarea id="queryInput" placeholder="Enter a keyword or describe your situation" rows="3"></textarea>
-        <select id="languageSelect"></select>
+        <label class="label" for="queryInput">Ask about your situation</label>
+        <textarea id="queryInput" placeholder="Example: I am angry with my brother. What does Islam teach about this?" rows="4"></textarea>
+
+        <div class="control-grid">
+          <div>
+            <label class="label" for="languageSelect">Language</label>
+            <select id="languageSelect"></select>
+          </div>
+          <div>
+            <label class="label" for="answerMode">Answer mode</label>
+            <select id="answerMode">
+              <option value="ai">AI answer + related hadith</option>
+              <option value="search">Only show related hadith</option>
+            </select>
+          </div>
+        </div>
+
         <div class="actions">
-          <button id="searchBtn">Search</button>
-          <button id="randomBtn">Random</button>
+          <button id="askBtn">Ask Hadith AI</button>
+          <button id="searchBtn" class="secondary">Search Hadith</button>
+          <button id="randomBtn">Random Hadith</button>
         </div>
       </div>
 
-      <!-- status message for both search and random actions -->
       <section id="statusSection" class="statusSection hidden" aria-live="polite">
         <p id="status" class="status"></p>
       </section>
 
-      <!-- search results will be rendered here -->
+      <section id="aiSection" class="result hidden">
+        <div class="section-head">
+          <h2>AI answer</h2>
+          <p class="mini">Grounded in the related hadith cards below.</p>
+        </div>
+        <div id="aiAnswer" class="ai-answer"></div>
+      </section>
+
       <section id="searchResults" class="result hidden"></section>
 
-      <!-- random hadith result -->
       <section id="randomResult" class="result hidden">
         <blockquote id="hadithText" class="hadithText"></blockquote>
         <p id="reference" class="reference"></p>

@@ -1,30 +1,31 @@
-// Hadith Finder Script
-
-// DOM elements
 const queryInput = document.getElementById("queryInput");
 const languageSelect = document.getElementById("languageSelect");
+const answerMode = document.getElementById("answerMode");
+const askBtn = document.getElementById("askBtn");
 const searchBtn = document.getElementById("searchBtn");
 const randomBtn = document.getElementById("randomBtn");
 const statusSection = document.getElementById("statusSection");
 const statusText = document.getElementById("status");
+const aiSection = document.getElementById("aiSection");
+const aiAnswer = document.getElementById("aiAnswer");
 const searchResults = document.getElementById("searchResults");
 const randomResultSection = document.getElementById("randomResult");
 const hadithText = document.getElementById("hadithText");
 const referenceText = document.getElementById("reference");
 const gradeText = document.getElementById("grade");
 
-// Constants
-// Base URL for Fawaz Ahmed's Hadith API datasets
 const API_BASE = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1";
+const MAX_CONTEXT_RESULTS = 6;
 
-// Editions used when fetching a random hadith (English)
 const RANDOM_EDITIONS = [
   "eng-abudawud",
   "eng-ibnmajah",
-  "eng-nasai"
+  "eng-nasai",
+  "eng-bukhari",
+  "eng-muslim",
+  "eng-tirmidhi"
 ];
 
-// Offline fallback hadiths in case remote API is unreachable
 const fallbackHadiths = [
   {
     text: "Actions are judged by intentions, and every person will have what they intended.",
@@ -58,7 +59,6 @@ const fallbackHadiths = [
   }
 ];
 
-// Supported languages with their edition lists
 const LANGUAGES = [
   {
     code: "eng",
@@ -109,77 +109,132 @@ const LANGUAGES = [
   }
 ];
 
-// Caches for downloaded editions to avoid repeated network requests
 const editionCache = {};
 
-/**
- * Get a random element from an array.
- * @param {Array} array
- * @returns {*}
- */
 function randomItem(array) {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-/**
- * Show a status message to the user. This will reveal the status section
- * and update its text content.
- * @param {string} message
- */
 function showStatus(message) {
   statusSection.classList.remove("hidden");
   statusText.textContent = message;
 }
 
-/**
- * Hide the status section.
- */
 function hideStatus() {
   statusSection.classList.add("hidden");
 }
 
-/**
- * Clear previously rendered search results.
- */
 function clearSearchResults() {
   searchResults.innerHTML = "";
   searchResults.classList.add("hidden");
 }
 
-/**
- * Render search results as a list of blocks.
- * @param {Array<{text: string, reference: string, grade: string}>} results
- */
-function renderSearchResults(results) {
-  searchResults.innerHTML = "";
+function clearAiAnswer() {
+  aiAnswer.textContent = "";
+  aiSection.classList.add("hidden");
+}
+
+function clearRandomResult() {
+  hadithText.textContent = "";
+  referenceText.textContent = "";
+  gradeText.textContent = "";
+  randomResultSection.classList.add("hidden");
+}
+
+function setBusyState(isBusy) {
+  askBtn.disabled = isBusy;
+  searchBtn.disabled = isBusy;
+  randomBtn.disabled = isBusy;
+}
+
+function normalizeText(text) {
+  return (text || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(text) {
+  const stopwords = new Set([
+    "the", "a", "an", "and", "or", "to", "of", "in", "on", "at", "for", "is", "are", "was", "were",
+    "be", "been", "with", "that", "this", "it", "as", "by", "from", "i", "me", "my", "you", "your",
+    "about", "what", "how", "when", "if", "am", "im", "so", "can", "do", "does", "did", "should",
+    "want", "need", "have", "has", "had", "feel", "feeling"
+  ]);
+
+  return normalizeText(text)
+    .split(" ")
+    .filter(word => word && word.length > 1 && !stopwords.has(word));
+}
+
+function buildReference(editionName, hadith) {
+  let reference = editionName;
+  if (hadith.reference && typeof hadith.reference === "object") {
+    const parts = [];
+    if (hadith.reference.book != null) parts.push(`Book ${hadith.reference.book}`);
+    if (hadith.reference.hadith != null) parts.push(`Hadith ${hadith.reference.hadith}`);
+    if (parts.length) reference = `${editionName} — ${parts.join(", ")}`;
+  } else if (hadith.reference) {
+    reference = `${editionName} — ${hadith.reference}`;
+  } else if (hadith.hadithnumber != null) {
+    reference = `${editionName} — Hadith ${hadith.hadithnumber}`;
+  }
+  return reference;
+}
+
+function buildGrade(hadith) {
+  return Array.isArray(hadith.grades) && hadith.grades.length
+    ? hadith.grades.map(item => item.grade).filter(Boolean).join(" | ")
+    : "Not provided";
+}
+
+function renderSearchResults(results, heading = "Related hadith") {
+  searchResults.innerHTML = `
+    <div class="section-head">
+      <h2>${heading}</h2>
+      <p class="mini">Top grounded matches from the hadith collections.</p>
+    </div>
+  `;
+
   results.forEach(item => {
     const div = document.createElement("div");
     div.className = "result-item";
+
     const blockquote = document.createElement("blockquote");
     blockquote.textContent = item.text;
     div.appendChild(blockquote);
-    if (item.reference) {
-      const ref = document.createElement("p");
-      ref.className = "reference";
-      ref.textContent = `Reference: ${item.reference}`;
-      div.appendChild(ref);
+
+    const bookLine = document.createElement("p");
+    bookLine.className = "bookline";
+    bookLine.textContent = `Collection: ${item.editionName}`;
+    div.appendChild(bookLine);
+
+    const ref = document.createElement("p");
+    ref.className = "reference";
+    ref.textContent = `Reference: ${item.reference}`;
+    div.appendChild(ref);
+
+    const grade = document.createElement("p");
+    grade.className = "grade";
+    grade.textContent = `Grade: ${item.grade}`;
+    div.appendChild(grade);
+
+    if (typeof item.score === "number") {
+      const score = document.createElement("p");
+      score.className = "score";
+      score.textContent = `Relevance score: ${item.score}`;
+      div.appendChild(score);
     }
-    if (item.grade) {
-      const gr = document.createElement("p");
-      gr.className = "grade";
-      gr.textContent = `Grade: ${item.grade}`;
-      div.appendChild(gr);
-    }
+
     searchResults.appendChild(div);
   });
+
   searchResults.classList.remove("hidden");
 }
 
-/**
- * Fetch JSON data. Tries the minified version first and falls back to full JSON.
- * @param {string} urlBase
- * @returns {Promise<any>}
- */
 async function fetchJsonWithFallback(urlBase) {
   const urls = [`${urlBase}.min.json`, `${urlBase}.json`];
   for (const url of urls) {
@@ -187,18 +242,13 @@ async function fetchJsonWithFallback(urlBase) {
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) continue;
       return await response.json();
-    } catch (_err) {
-      // ignore and try next
+    } catch (_error) {
+      // try next source
     }
   }
   throw new Error("Failed to fetch JSON");
 }
 
-/**
- * Load a hadith edition. Caches the result for future use.
- * @param {string} editionName
- * @returns {Promise<Array<{text: string, grades: any[], reference: any, hadithnumber: number}>>}
- */
 async function loadEdition(editionName) {
   if (editionCache[editionName]) return editionCache[editionName];
   const data = await fetchJsonWithFallback(`${API_BASE}/editions/${editionName}`);
@@ -207,145 +257,260 @@ async function loadEdition(editionName) {
   return list;
 }
 
-/**
- * Search for hadiths within the editions of a specific language. The search is
- * performed by splitting the query into words and requiring that each word be
- * present in the hadith text. The search stops after finding up to 10 matches.
- * @param {string} query
- * @param {string} languageCode
- * @returns {Promise<Array<{text: string, reference: string, grade: string}>>}
- */
-async function searchHadith(query, languageCode) {
-  const language = LANGUAGES.find(l => l.code === languageCode);
-  if (!language) return [];
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const results = [];
-  for (const editionName of language.editions) {
-    const list = await loadEdition(editionName);
-    for (const hadith of list) {
-      if (!hadith.text) continue;
-      const textLower = hadith.text.toLowerCase();
-      // Check if all query words are contained
-      if (words.every(w => textLower.includes(w))) {
-        // derive grade
-        const grade = Array.isArray(hadith.grades) && hadith.grades.length
-          ? hadith.grades.map(item => item.grade).filter(Boolean).join(" | ")
-          : "";
-        // derive reference
-        let reference = editionName;
-        if (hadith.reference && typeof hadith.reference === "object") {
-          const parts = [];
-          if (hadith.reference.book != null) parts.push(`Book ${hadith.reference.book}`);
-          if (hadith.reference.hadith != null) parts.push(`Hadith ${hadith.reference.hadith}`);
-          if (parts.length) reference = `${editionName} — ${parts.join(", ")}`;
-        } else if (hadith.reference) {
-          reference = `${editionName} — ${hadith.reference}`;
-        } else if (hadith.hadithnumber != null) {
-          reference = `${editionName} — Hadith ${hadith.hadithnumber}`;
-        }
-        results.push({
-          text: hadith.text,
-          reference,
-          grade
-        });
-        if (results.length >= 10) break;
-      }
-    }
-    if (results.length >= 10) break;
+function scoreHadith(question, hadithText) {
+  const questionNorm = normalizeText(question);
+  const hadithNorm = normalizeText(hadithText);
+  const questionTokens = tokenize(question);
+  const hadithTokens = tokenize(hadithText);
+  const hadithSet = new Set(hadithTokens);
+
+  let score = 0;
+
+  for (const token of questionTokens) {
+    if (hadithSet.has(token)) score += 5;
+    if (hadithNorm.includes(token)) score += 2;
   }
-  return results;
+
+  if (hadithNorm.includes(questionNorm) && questionNorm.length > 8) score += 25;
+
+  const bigrams = [];
+  for (let i = 0; i < questionTokens.length - 1; i += 1) {
+    bigrams.push(`${questionTokens[i]} ${questionTokens[i + 1]}`);
+  }
+
+  for (const bigram of bigrams) {
+    if (hadithNorm.includes(bigram)) score += 8;
+  }
+
+  if (/angry|anger/.test(questionNorm) && /anger|angry/.test(hadithNorm)) score += 12;
+  if (/patience|sabr|patient/.test(questionNorm) && /patience|patient/.test(hadithNorm)) score += 12;
+  if (/forgive|forgiveness/.test(questionNorm) && /forgive|forgiveness/.test(hadithNorm)) score += 12;
+  if (/sad|grief|depressed|worry|anxious/.test(questionNorm) && /sad|grief|worry|hardship|affliction/.test(hadithNorm)) score += 12;
+  if (/brother|sister|family|mother|father|parent/.test(questionNorm) && /brother|family|kinship|parent|mother|father/.test(hadithNorm)) score += 12;
+  if (/marriage|wife|husband/.test(questionNorm) && /wife|husband|marriage/.test(hadithNorm)) score += 12;
+  if (/money|debt|charity|wealth/.test(questionNorm) && /charity|wealth|debt|money/.test(hadithNorm)) score += 12;
+  if (/pray|prayer|salah/.test(questionNorm) && /pray|prayer|salah/.test(hadithNorm)) score += 12;
+
+  return score;
 }
 
-/**
- * Perform a search based on user input and update the UI accordingly.
- */
+async function findRelevantHadiths(question, languageCode) {
+  const language = LANGUAGES.find(item => item.code === languageCode);
+  if (!language) return [];
+
+  const matches = [];
+
+  for (const editionName of language.editions) {
+    const list = await loadEdition(editionName);
+
+    for (const hadith of list) {
+      if (!hadith.text) continue;
+      const score = scoreHadith(question, hadith.text);
+      if (score <= 0) continue;
+
+      matches.push({
+        text: hadith.text,
+        reference: buildReference(editionName, hadith),
+        grade: buildGrade(hadith),
+        editionName,
+        score
+      });
+    }
+  }
+
+  matches.sort((a, b) => b.score - a.score || a.text.length - b.text.length);
+
+  const deduped = [];
+  const seen = new Set();
+  for (const item of matches) {
+    const key = normalizeText(item.text).slice(0, 140);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+    if (deduped.length >= MAX_CONTEXT_RESULTS) break;
+  }
+
+  return deduped;
+}
+
+function renderAiAnswer(text) {
+  aiAnswer.textContent = text;
+  aiSection.classList.remove("hidden");
+}
+
+function buildFallbackAdvice(question, relatedHadiths) {
+  if (!relatedHadiths.length) {
+    return `I could not find a strong AI answer right now, but you can still read the hadith results or try a simpler keyword search for: ${question}`;
+  }
+
+  const top = relatedHadiths[0];
+  return [
+    "AI is unavailable right now, so here is a grounded fallback.",
+    "",
+    "Best related hadith found:",
+    top.text,
+    "",
+    `Reference: ${top.reference}`,
+    `Grade: ${top.grade}`,
+    "",
+    "Read the related hadith cards below for more context."
+  ].join("\n");
+}
+
+async function askAiAboutHadith(question, languageCode, relatedHadiths) {
+  const response = await fetch("/.netlify/functions/ask-hadith", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      question,
+      languageCode,
+      context: relatedHadiths
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data?.error || "AI request failed");
+  }
+
+  return data?.answer || "No answer returned.";
+}
+
 async function performSearch() {
   const query = queryInput.value.trim();
   const languageCode = languageSelect.value;
+
+  clearAiAnswer();
+  clearRandomResult();
   clearSearchResults();
-  randomResultSection.classList.add("hidden");
+
   if (!query) {
-    showStatus("Please enter a search query.");
+    showStatus("Please enter a question or keyword.");
     return;
   }
-  showStatus("Searching…");
+
+  setBusyState(true);
+  showStatus("Searching hadith collections...");
+
   try {
-    // Perform a unified search across the selected language's editions.
-    // For English and other languages, we use the dataset hosted on jsDelivr.
-    const results = await searchHadith(query, languageCode);
-    hideStatus();
-    if (results && results.length) {
-      renderSearchResults(results);
-    } else {
-      showStatus("No results found.");
+    const results = await findRelevantHadiths(query, languageCode);
+
+    if (!results.length) {
+      showStatus("No related hadith found. Try simpler words like anger, patience, family, prayer, debt, or forgiveness.");
+      return;
     }
+
+    renderSearchResults(results);
+    hideStatus();
   } catch (error) {
     console.error(error);
-    showStatus("An error occurred while searching. Please try again.");
+    showStatus("An error occurred while searching hadiths.");
+  } finally {
+    setBusyState(false);
   }
 }
 
-/**
- * Fetch and display a random hadith from the predefined English editions. If
- * network requests fail, show an offline fallback reminder.
- */
-async function fetchRandomHadith() {
-  // Hide search results when showing random
+async function performAiAsk() {
+  const question = queryInput.value.trim();
+  const languageCode = languageSelect.value;
+
+  clearAiAnswer();
+  clearRandomResult();
   clearSearchResults();
-  searchResults.classList.add("hidden");
+
+  if (!question) {
+    showStatus("Please enter your question first.");
+    return;
+  }
+
+  setBusyState(true);
+  showStatus("Finding related hadiths...");
+
+  try {
+    const relatedHadiths = await findRelevantHadiths(question, languageCode);
+
+    if (relatedHadiths.length) {
+      renderSearchResults(relatedHadiths);
+    }
+
+    if (answerMode.value === "search") {
+      if (relatedHadiths.length) {
+        hideStatus();
+      } else {
+        showStatus("No related hadith found.");
+      }
+      return;
+    }
+
+    showStatus("Generating AI answer from grounded hadith context...");
+
+    try {
+      const answer = await askAiAboutHadith(question, languageCode, relatedHadiths);
+      renderAiAnswer(answer);
+      hideStatus();
+    } catch (aiError) {
+      console.error(aiError);
+      renderAiAnswer(buildFallbackAdvice(question, relatedHadiths));
+      showStatus("AI is unavailable, so a grounded fallback answer is shown.");
+    }
+  } catch (error) {
+    console.error(error);
+    showStatus("An error occurred while building the answer.");
+  } finally {
+    setBusyState(false);
+  }
+}
+
+async function fetchRandomHadith() {
+  clearAiAnswer();
+  clearSearchResults();
   randomResultSection.classList.remove("hidden");
-  showStatus("Loading random hadith…");
-  hadithText.textContent = "";
-  referenceText.textContent = "";
-  gradeText.textContent = "";
+  setBusyState(true);
+  showStatus("Loading random hadith...");
+
   try {
     const edition = randomItem(RANDOM_EDITIONS);
     const list = await loadEdition(edition);
     const hadith = randomItem(list);
     if (!hadith || !hadith.text) throw new Error("No hadith found");
-    const grade = Array.isArray(hadith.grades) && hadith.grades.length
-      ? hadith.grades.map(item => item.grade).filter(Boolean).join(" | ")
-      : "Not provided";
-    let reference = edition;
-    if (hadith.reference && typeof hadith.reference === "object") {
-      const parts = [];
-      if (hadith.reference.book != null) parts.push(`Book ${hadith.reference.book}`);
-      if (hadith.reference.hadith != null) parts.push(`Hadith ${hadith.reference.hadith}`);
-      if (parts.length) reference = `${edition} — ${parts.join(", ")}`;
-    } else if (hadith.reference) {
-      reference = `${edition} — ${hadith.reference}`;
-    } else if (hadith.hadithnumber != null) {
-      reference = `${edition} — Hadith ${hadith.hadithnumber}`;
-    }
-    hadithText.textContent = hadith.text || "";
-    referenceText.textContent = reference ? `Reference: ${reference}` : "";
-    gradeText.textContent = grade ? `Grade: ${grade}` : "";
+
+    hadithText.textContent = hadith.text;
+    referenceText.textContent = `Reference: ${buildReference(edition, hadith)}`;
+    gradeText.textContent = `Grade: ${buildGrade(hadith)}`;
     statusText.textContent = "Random reminder";
   } catch (error) {
-    // If remote fetch fails, fall back to offline reminders
     const fallback = randomItem(fallbackHadiths);
     hadithText.textContent = fallback.text;
     referenceText.textContent = `Reference: ${fallback.reference}`;
     gradeText.textContent = `Grade: ${fallback.grade}`;
     statusText.textContent = "Showing offline reminder";
+  } finally {
+    setBusyState(false);
   }
 }
 
-/**
- * Populate the language dropdown on page load.
- */
 function populateLanguages() {
   languageSelect.innerHTML = "";
   LANGUAGES.forEach(lang => {
-    const opt = document.createElement("option");
-    opt.value = lang.code;
-    opt.textContent = lang.name;
-    languageSelect.appendChild(opt);
+    const option = document.createElement("option");
+    option.value = lang.code;
+    option.textContent = lang.name;
+    languageSelect.appendChild(option);
   });
   languageSelect.value = "eng";
 }
 
-// Initialize the app
+function handleEnterShortcut(event) {
+  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    performAiAsk();
+  }
+}
+
 populateLanguages();
+askBtn.addEventListener("click", performAiAsk);
 searchBtn.addEventListener("click", performSearch);
 randomBtn.addEventListener("click", fetchRandomHadith);
+queryInput.addEventListener("keydown", handleEnterShortcut);
