@@ -3,56 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hadith AI Finder</title>
+  <title>Random Hadith Reminder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <div class="card">
-      <p class="badge">Hadith AI Finder</p>
-      <h1>Hadith AI Finder</h1>
+      <p class="badge">Random Hadith Reminder</p>
+      <h1>Random Hadith Reminder</h1>
       <p class="subtitle">
-        Keep the random hadith reminder, search real hadith collections, and ask an AI assistant that answers from relevant hadith context instead of guessing.
+        Read a real random hadith anytime with language support and offline fallback.
       </p>
 
       <div class="search-controls">
-        <label class="label" for="queryInput">Ask about your situation</label>
-        <textarea id="queryInput" placeholder="Example: I am angry with my brother. What does Islam teach about this?" rows="4"></textarea>
-
-        <div class="control-grid">
-          <div>
-            <label class="label" for="languageSelect">Language</label>
-            <select id="languageSelect"></select>
-          </div>
-          <div>
-            <label class="label" for="answerMode">Answer mode</label>
-            <select id="answerMode">
-              <option value="ai">AI answer + related hadith</option>
-              <option value="search">Only show related hadith</option>
-            </select>
-          </div>
+        <div>
+          <label class="label" for="languageSelect">Language</label>
+          <select id="languageSelect"></select>
         </div>
 
         <div class="actions">
-          <button id="askBtn">Ask Hadith AI</button>
-          <button id="searchBtn" class="secondary">Search Hadith</button>
-          <button id="randomBtn">Random Hadith</button>
+          <button id="randomBtn">Generate Random Hadith</button>
         </div>
       </div>
 
       <section id="statusSection" class="statusSection hidden" aria-live="polite">
         <p id="status" class="status"></p>
       </section>
-
-      <section id="aiSection" class="result hidden">
-        <div class="section-head">
-          <h2>AI answer</h2>
-          <p class="mini">Grounded in the related hadith cards below.</p>
-        </div>
-        <div id="aiAnswer" class="ai-answer"></div>
-      </section>
-
-      <section id="searchResults" class="result hidden"></section>
 
       <section id="randomResult" class="result hidden">
         <blockquote id="hadithText" class="hadithText"></blockquote>
