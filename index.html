@@ -3,24 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Islamic Reminder Generator</title>
+  <title>Hadith Finder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <div class="card">
-      <p class="badge">Islamic Reminder</p>
-      <h1>Islamic Reminder Generator</h1>
+      <p class="badge">Hadith Finder</p>
+      <h1>Hadith Finder</h1>
       <p class="subtitle">
-        Click the button to get a beneficial reminder from hadith. If the public API is unavailable, the app will show an offline authentic reminder instead.
+        Search authentic hadiths in your preferred language. Enter a keyword or briefly describe your situation to find relevant narrations. If you prefer a random reminder instead, click the random button.
       </p>
 
-      <div class="actions">
-        <button id="generateBtn">Get Reminder</button>
+      <div class="search-controls">
+        <textarea id="queryInput" placeholder="Enter a keyword or describe your situation" rows="3"></textarea>
+        <select id="languageSelect"></select>
+        <div class="actions">
+          <button id="searchBtn">Search</button>
+          <button id="randomBtn">Random</button>
+        </div>
       </div>
 
-      <section id="result" class="result hidden" aria-live="polite">
+      <!-- status message for both search and random actions -->
+      <section id="statusSection" class="statusSection hidden" aria-live="polite">
         <p id="status" class="status"></p>
+      </section>
+
+      <!-- search results will be rendered here -->
+      <section id="searchResults" class="result hidden"></section>
+
+      <!-- random hadith result -->
+      <section id="randomResult" class="result hidden">
         <blockquote id="hadithText" class="hadithText"></blockquote>
         <p id="reference" class="reference"></p>
         <p id="grade" class="grade"></p>

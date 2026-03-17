@@ -52,6 +52,54 @@ h1 {
   margin-bottom: 20px;
 }
 
+/* Additional styles for search controls */
+.search-controls {
+  margin-bottom: 20px;
+}
+
+#queryInput {
+  width: 100%;
+  min-height: 80px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 16px;
+  margin-bottom: 12px;
+  resize: vertical;
+}
+
+#languageSelect {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+/* Result list styling */
+.result-item {
+  padding: 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.result-item blockquote {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.result-item .reference,
+.result-item .grade {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
 button {
   border: none;
   border-radius: 12px;
