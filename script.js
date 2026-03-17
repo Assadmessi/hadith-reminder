@@ -2,6 +2,8 @@ const languageSelect = document.getElementById("languageSelect");
 const randomBtn = document.getElementById("randomBtn");
 const statusSection = document.getElementById("statusSection");
 const statusText = document.getElementById("status");
+const aiSection = document.getElementById("aiSection");
+const aiAnswer = document.getElementById("aiAnswer");
 const randomResultSection = document.getElementById("randomResult");
 const hadithText = document.getElementById("hadithText");
 const referenceText = document.getElementById("reference");
@@ -112,8 +114,9 @@ function showStatus(message) {
   statusText.textContent = message;
 }
 
-function hideStatus() {
-  statusSection.classList.add("hidden");
+function clearAiAnswer() {
+  aiAnswer.textContent = "";
+  aiSection.classList.add("hidden");
 }
 
 function clearRandomResult() {
@@ -130,72 +133,53 @@ function setBusyState(isBusy) {
 
 function buildReference(editionName, hadith) {
   let reference = editionName;
-
   if (hadith.reference && typeof hadith.reference === "object") {
     const parts = [];
     if (hadith.reference.book != null) parts.push(`Book ${hadith.reference.book}`);
     if (hadith.reference.hadith != null) parts.push(`Hadith ${hadith.reference.hadith}`);
-    if (parts.length) reference += ` — ${parts.join(", ")}`;
+    if (parts.length) reference = `${editionName} — ${parts.join(", ")}`;
   } else if (hadith.reference) {
-    reference += ` — ${hadith.reference}`;
-  } else if (hadith.book?.bookNumber != null || hadith.hadithNumber != null) {
-    const parts = [];
-    if (hadith.book?.bookNumber != null) parts.push(`Book ${hadith.book.bookNumber}`);
-    if (hadith.hadithNumber != null) parts.push(`Hadith ${hadith.hadithNumber}`);
-    if (parts.length) reference += ` — ${parts.join(", ")}`;
+    reference = `${editionName} — ${hadith.reference}`;
+  } else if (hadith.hadithnumber != null) {
+    reference = `${editionName} — Hadith ${hadith.hadithnumber}`;
   }
-
   return reference;
 }
 
-function getHadithText(hadith) {
-  return (
-    hadith.hadithEnglish ||
-    hadith.hadithArabic ||
-    hadith.text ||
-    hadith.body ||
-    hadith.content ||
-    "No hadith text available."
-  );
+function buildGrade(hadith) {
+  return Array.isArray(hadith.grades) && hadith.grades.length
+    ? hadith.grades.map(item => item.grade).filter(Boolean).join(" | ")
+    : (hadith.grade || hadith.status || "Not provided");
 }
 
-function getGrade(hadith) {
-  return hadith.grade || hadith.status || "Grade not provided";
-}
-
-function populateLanguages() {
-  languageSelect.innerHTML = "";
-
-  LANGUAGES.forEach(language => {
-    const option = document.createElement("option");
-    option.value = language.code;
-    option.textContent = language.name;
-    languageSelect.appendChild(option);
-  });
-
-  languageSelect.value = "eng";
-}
-
-async function loadEdition(edition) {
-  if (editionCache[edition]) {
-    return editionCache[edition];
+async function fetchJsonWithFallback(urlBase) {
+  const urls = [`${urlBase}.min.json`, `${urlBase}.json`];
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) continue;
+      return await response.json();
+    } catch (_error) {}
   }
+  throw new Error("Failed to fetch JSON");
+}
 
-  const response = await fetch(`${API_BASE}/editions/${edition}.json`);
-  if (!response.ok) {
-    throw new Error(`Failed to load edition ${edition}`);
-  }
+async function loadEdition(editionName) {
+  if (editionCache[editionName]) return editionCache[editionName];
+  const data = await fetchJsonWithFallback(`${API_BASE}/editions/${editionName}`);
+  const list = Array.isArray(data?.hadiths) ? data.hadiths.filter(item => item?.text) : [];
+  editionCache[editionName] = list;
+  return list;
+}
 
-  const data = await response.json();
-  const collection = data?.hadiths?.data || data?.hadiths || data?.data || [];
-  editionCache[edition] = Array.isArray(collection) ? collection : [];
-  return editionCache[edition];
+function getSelectedLanguage() {
+  return LANGUAGES.find(item => item.code === languageSelect.value) || LANGUAGES[0];
 }
 
 function showRandomHadith(hadith, editionName) {
-  hadithText.textContent = getHadithText(hadith);
+  hadithText.textContent = hadith.text || "No hadith text available.";
   referenceText.textContent = `Reference: ${buildReference(editionName, hadith)}`;
-  gradeText.textContent = `Grade: ${getGrade(hadith)}`;
+  gradeText.textContent = `Grade: ${buildGrade(hadith)}`;
   randomResultSection.classList.remove("hidden");
 }
 
@@ -203,35 +187,90 @@ function showFallbackRandomHadith() {
   const hadith = randomItem(fallbackHadiths);
   showRandomHadith(hadith, "Offline fallback");
   showStatus("Showing offline fallback hadith.");
+  return {
+    text: hadith.text,
+    reference: hadith.reference,
+    grade: hadith.grade,
+    editionName: "Offline fallback"
+  };
+}
+
+async function generateAiReflection(hadith) {
+  try {
+    showStatus("Generating AI reflection...");
+    const response = await fetch("/.netlify/functions/ask-hadith", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        mode: "random_reflection",
+        languageCode: languageSelect.value,
+        hadith
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "AI reflection failed.");
+    }
+
+    aiAnswer.textContent = data?.answer || "No AI reflection returned.";
+    aiSection.classList.remove("hidden");
+    showStatus("Random hadith and AI reflection loaded.");
+  } catch (error) {
+    console.error(error);
+    aiAnswer.textContent = "AI reflection is unavailable right now. The random hadith still works normally.";
+    aiSection.classList.remove("hidden");
+    showStatus("Random hadith loaded, but AI reflection is unavailable.");
+  }
 }
 
 async function generateRandomHadith() {
   clearRandomResult();
+  clearAiAnswer();
   setBusyState(true);
   showStatus("Loading random hadith...");
 
   try {
-    const selectedLanguage = LANGUAGES.find(item => item.code === languageSelect.value);
-    const editions = selectedLanguage?.editions?.length
-      ? selectedLanguage.editions
-      : RANDOM_EDITIONS;
-
-    const edition = randomItem(editions);
-    const hadiths = await loadEdition(edition);
+    const selectedLanguage = getSelectedLanguage();
+    const editions = selectedLanguage.editions?.length ? selectedLanguage.editions : RANDOM_EDITIONS;
+    const editionName = randomItem(editions);
+    const hadiths = await loadEdition(editionName);
 
     if (!hadiths.length) {
-      throw new Error("No hadiths found in the selected edition.");
+      throw new Error("No hadiths found in this edition.");
     }
 
     const hadith = randomItem(hadiths);
-    showRandomHadith(hadith, edition);
-    showStatus("Random hadith loaded.");
+    const hadithForAi = {
+      text: hadith.text,
+      reference: buildReference(editionName, hadith),
+      grade: buildGrade(hadith),
+      editionName
+    };
+
+    showRandomHadith(hadith, editionName);
+    await generateAiReflection(hadithForAi);
   } catch (error) {
     console.error(error);
-    showFallbackRandomHadith();
+    const hadithForAi = showFallbackRandomHadith();
+    await generateAiReflection(hadithForAi);
   } finally {
     setBusyState(false);
   }
+}
+
+function populateLanguages() {
+  languageSelect.innerHTML = "";
+  LANGUAGES.forEach(language => {
+    const option = document.createElement("option");
+    option.value = language.code;
+    option.textContent = language.name;
+    languageSelect.appendChild(option);
+  });
+  languageSelect.value = "eng";
 }
 
 populateLanguages();

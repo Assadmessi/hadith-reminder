@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Random Hadith Reminder</title>
+  <title>Hadith AI Reminder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <div class="card">
-      <p class="badge">Random Hadith Reminder</p>
-      <h1>Random Hadith Reminder</h1>
+      <p class="badge">Hadith AI Reminder</p>
+      <h1>Hadith AI Reminder</h1>
       <p class="subtitle">
-        Read a real random hadith anytime with language support and offline fallback.
+        Generate a real random hadith, then get a short AI reflection based only on that hadith.
       </p>
 
       <div class="search-controls">
@@ -34,6 +34,14 @@
         <blockquote id="hadithText" class="hadithText"></blockquote>
         <p id="reference" class="reference"></p>
         <p id="grade" class="grade"></p>
+      </section>
+
+      <section id="aiSection" class="result hidden">
+        <div class="section-head">
+          <h2>AI Reflection</h2>
+          <p class="mini">A short reminder based only on the hadith shown above.</p>
+        </div>
+        <div id="aiAnswer" class="ai-answer"></div>
       </section>
     </div>
   </main>

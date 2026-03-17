@@ -1,15 +1,23 @@
-# Random Hadith Reminder
+# Hadith AI Reminder
 
-A simple hadith app with:
-- random real hadith reminders
+A hadith app with:
+- real random hadith generation
+- AI reflection for each random hadith
 - language support
-- offline fallback hadiths
+- Netlify Functions backend so the API key stays hidden
 
-## Deploy
+## Setup
 
-This is a static app. You can deploy it on Netlify, GitHub Pages, or any static hosting.
+1. Push this project to GitHub.
+2. Import it into Netlify.
+3. Add environment variable:
+   - `GROQ_API_KEY=your_free_groq_key`
+4. Optional:
+   - `GROQ_MODEL=openai/gpt-oss-20b`
+5. Deploy.
 
-## Notes
+## What changed
 
-- The app loads a random hadith from supported collections.
-- If the API fails, it shows an offline fallback hadith.
+- Removed Ask AI about user situations
+- Kept random hadith
+- Added AI reflection for the random hadith only
