@@ -338,22 +338,70 @@ function renderAiAnswer(text) {
   aiSection.classList.remove("hidden");
 }
 
-function buildFallbackAdvice(question, relatedHadiths) {
+function inferVerdictFromHadith(question, relatedHadiths) {
   if (!relatedHadiths.length) {
-    return `I could not find a strong AI answer right now, but you can still read the hadith results or try a simpler keyword search for: ${question}`;
+    return {
+      verdict: "Unclear from these hadith alone",
+      reason: "No strong related hadith was found for this exact question.",
+      action: "Try simpler keywords like anger, patience, family, prayer, debt, forgiveness, kindness, lying, marriage, or charity."
+    };
+  }
+
+  const combined = normalizeText(relatedHadiths.map(item => item.text).join(" "));
+  const questionNorm = normalizeText(question);
+
+  let verdict = "Recommended";
+  let reason = "The strongest related hadith point toward a positive and careful response.";
+
+  if (/not the strong|controls himself when angry|anger|angry/.test(combined) && /angry|anger|fight|hit|shout/.test(questionNorm)) {
+    verdict = "Better to avoid";
+    reason = "The hadith emphasize controlling anger, so acting from anger is not the better path.";
+  } else if (/speak good or remain silent|remain silent/.test(combined) && /say|speak|reply|message|talk|argue|insult/.test(questionNorm)) {
+    verdict = "Better to avoid";
+    reason = "The hadith point toward speaking good or staying silent instead of harmful speech.";
+  } else if (/loves for his brother what he loves for himself/.test(combined) && /hurt|harm|cheat|envy|jealous|hate/.test(questionNorm)) {
+    verdict = "No";
+    reason = "The hadith call for wanting good for others, which goes against harming or wronging them.";
+  } else if (/allah is gentle and loves gentleness/.test(combined) && /harsh|rough|force|violent/.test(questionNorm)) {
+    verdict = "Discouraged";
+    reason = "The hadith praise gentleness, so harshness is not supported by this evidence.";
+  } else if (/small|regularly/.test(combined) && /start|continue|habit|daily|consistent/.test(questionNorm)) {
+    verdict = "Recommended";
+    reason = "The hadith support small deeds done consistently.";
+  }
+
+  return {
+    verdict,
+    reason,
+    action: "Read the evidence below and follow the safer, gentler, and more consistent path shown by the hadith."
+  };
+}
+
+function buildFallbackAdvice(question, relatedHadiths) {
+  const inference = inferVerdictFromHadith(question, relatedHadiths);
+
+  if (!relatedHadiths.length) {
+    return [
+      `Verdict: ${inference.verdict}`,
+      "",
+      `Reason: ${inference.reason}`,
+      "",
+      `What to do: ${inference.action}`
+    ].join("\n");
   }
 
   const top = relatedHadiths[0];
   return [
-    "AI is unavailable right now, so here is a grounded fallback.",
+    `Verdict: ${inference.verdict}`,
     "",
-    "Best related hadith found:",
+    `Reason: ${inference.reason}`,
+    "",
+    "Evidence:",
     top.text,
-    "",
     `Reference: ${top.reference}`,
     `Grade: ${top.grade}`,
     "",
-    "Read the related hadith cards below for more context."
+    `What to do: ${inference.action}`
   ].join("\n");
 }
 
@@ -445,7 +493,7 @@ async function performAiAsk() {
       return;
     }
 
-    showStatus("Generating AI answer from grounded hadith context...");
+    showStatus("Generating a direct answer from grounded hadith context...");
 
     try {
       const answer = await askAiAboutHadith(question, languageCode, relatedHadiths);

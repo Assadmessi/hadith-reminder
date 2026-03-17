@@ -1,4 +1,8 @@
 exports.handler = async function handler(event) {
+  if (event.httpMethod === "OPTIONS") {
+    return jsonResponse(200, { ok: true });
+  }
+
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
@@ -46,15 +50,19 @@ exports.handler = async function handler(event) {
 
     const systemPrompt = [
       "You are a careful Islamic hadith assistant.",
-      "Only answer using the hadith context provided by the app.",
-      "Do not invent hadith, chains, grades, scholars, or references.",
-      "If the context is weak or insufficient, say so clearly.",
+      "Only answer from the hadith context provided by the app.",
+      "Do not invent hadith, scholars, grades, rulings, or references.",
+      "Do not pretend certainty when the evidence is not clear.",
+      "The user often wants a practical answer like: yes, no, avoid, recommended, or unclear.",
+      "You may infer a practical answer only from the provided hadith context.",
+      "If the context is not enough for a clear ruling, say 'Unclear from these hadith alone'.",
       `Reply in ${answerLanguage}.`,
-      "Keep the structure simple:",
-      "1. Short answer",
-      "2. Relevant hadith(s)",
-      "3. Practical takeaway",
-      "Avoid giving fatwa-style certainty."
+      "Use this exact structure:",
+      "Verdict: one short line only. Use one of these labels -> Yes, No, Better to avoid, Recommended, Discouraged, Unclear from these hadith alone.",
+      "Reason: 2-4 short sentences explaining why, based only on the hadith context.",
+      "Evidence: quote or paraphrase the most relevant hadith and include its reference.",
+      "What to do: give 1-3 practical next steps.",
+      "If the user asks whether something is halal or haram and the hadith context alone does not clearly establish that, do not say halal or haram. Use 'Unclear from these hadith alone' instead."
     ].join(" ");
 
     const userPrompt = [
@@ -63,7 +71,9 @@ exports.handler = async function handler(event) {
       "Retrieved hadith context:",
       contextText,
       "",
-      "Answer using only this retrieved context. If no context is enough, say that clearly and ask the user to try a simpler keyword."
+      "Give a practical answer. The first line must begin with 'Verdict:'.",
+      "If the question is about whether the user can do something, make the verdict explicit instead of only summarizing the hadith.",
+      "Never answer from general knowledge outside the provided hadith context."
     ].join("\n");
 
     const model = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
@@ -76,7 +86,7 @@ exports.handler = async function handler(event) {
       },
       body: JSON.stringify({
         model,
-        temperature: 0.2,
+        temperature: 0.15,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -109,7 +119,9 @@ function jsonResponse(statusCode, body) {
     statusCode,
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*"
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type"
     },
     body: JSON.stringify(body)
   };
